@@ -5,26 +5,21 @@ import android.net.Uri
 import android.os.Build
 import android.widget.VideoView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -51,8 +46,8 @@ object MediaLoader {
     }
 
     /**
-     * Media for an exercise: a clip the user attached in the app wins; otherwise a bundled
-     * file in res/raw named after the exercise id (e.g. res/raw/prone_y.mp4 or prone_y.gif).
+     * A clip the user attached in the app wins; then a bundled file in res/raw named after
+     * the exercise id. Null means: draw the built-in figure.
      */
     fun resolve(ctx: Context, ex: Exercise): Media? {
         if (ex.mediaUri.isNotBlank()) {
@@ -76,29 +71,34 @@ object MediaLoader {
     }
 }
 
+/**
+ * Exercise demonstration: the user's clip if they attached one, otherwise the animated figure.
+ * [progress] / [push] drive the figure from the session timer; null lets it loop.
+ */
 @Composable
-fun ExerciseMedia(ex: Exercise, height: Dp = 220.dp) {
+fun ExerciseMedia(
+    ex: Exercise,
+    height: Dp = 220.dp,
+    progress: Float? = null,
+    push: Float? = null,
+    background: Color? = null,
+) {
     val ctx = LocalContext.current
     val media = remember(ex.id, ex.mediaUri) { MediaLoader.resolve(ctx, ex) }
     Box(
         Modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .clip(MaterialTheme.shapes.large)
+            .background(background ?: MaterialTheme.colorScheme.surfaceContainer),
         contentAlignment = Alignment.Center,
     ) {
         when (media) {
-            null -> Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(16.dp),
-            ) {
-                Text("No animation yet", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (ex.videoUrl.isNotBlank()) {
-                    TextButton(onClick = { openUrl(ctx, ex.videoUrl) }) { Text("Open reference video") }
-                }
-            }
+            null -> ExerciseFigure(
+                ex.id, ex.category,
+                modifier = Modifier.fillMaxSize().padding(8.dp),
+                progress = progress, push = push,
+            )
             is Media.Video -> key(media.uri) {
                 AndroidView(
                     factory = { c ->

@@ -30,7 +30,10 @@ New builds install over the old one and keep your data.
 - **Program editor**: change sets, reps, hold, rest, tempo, band, order; enable exercises
   once the physio confirms them; attach your own clips.
 
-Animations: see [docs/ANIMATIONS.md](docs/ANIMATIONS.md).
+Design: [docs/DESIGN.md](docs/DESIGN.md). Exercise figures and clips: [docs/ANIMATIONS.md](docs/ANIMATIONS.md).
+
+> Not medical advice. The default program is one person's physio prescription; use the exercises,
+> doses and limits your own physio gives you.
 
 ## Build
 

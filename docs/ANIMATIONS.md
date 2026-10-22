@@ -1,5 +1,9 @@
 # Exercise animations
 
+The app draws its own animated figure for every exercise (`ui/ExerciseFigure.kt`), synced to the
+session timer. A clip is optional: a bundled file or one attached on the phone replaces the figure.
+Only bundle clips you have the rights to publish — this repo is public.
+
 Put one file per exercise in `app/src/main/res/raw/`, named exactly after the exercise id.
 MP4 (H.264) or GIF, looped, ideally under 3 MB each. Names must be lowercase letters, digits
 and underscores only — the ids below already are.

@@ -1,5 +1,7 @@
 package com.nube.physiohelper.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nube.physiohelper.App
 import com.nube.physiohelper.analysis.Analysis
@@ -32,7 +35,7 @@ fun SpadiScreen(onBack: () -> Unit) {
     val values = answers.mapIndexed { i, v -> if (na[i]) -1 else v }
     val (pain, dis, total) = Analysis.spadiScores(values)
 
-    Screen("Weekly shoulder score", onBack) {
+    Screen("Weekly score", onBack) {
         Muted("SPADI: rate the past week, 0 = no pain / no difficulty, 10 = worst imaginable / so difficult it needs help. Lower is better.")
         SectionCard("Pain: how severe was it when…") {
             Spadi.painItems.forEachIndexed { i, label -> Item(label, i, answers, na) }
@@ -79,15 +82,11 @@ fun SpadiScreen(onBack: () -> Unit) {
 
 @Composable
 private fun Item(label: String, i: Int, answers: MutableList<Int>, na: MutableList<Boolean>) {
-    if (na[i]) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$label: not applicable", Modifier.weight(1f))
+            Text(label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+            TextButton(onClick = { na[i] = !na[i] }) { Text(if (na[i]) "Rate it" else "N/A") }
         }
-    } else {
-        PainSlider(label, answers[i]) { answers[i] = it }
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = na[i], onCheckedChange = { na[i] = it })
-        Muted("Not applicable")
+        if (na[i]) Muted("Not applicable") else PainPicker(answers[i], { answers[i] = it }, showWord = false)
     }
 }

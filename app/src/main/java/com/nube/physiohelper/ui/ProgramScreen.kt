@@ -3,7 +3,12 @@ package com.nube.physiohelper.ui
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +20,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,9 +52,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun ProgramScreen(nav: (Route) -> Unit, onBack: () -> Unit) {
+fun ProgramScreen(nav: (Route) -> Unit) {
     val scope = rememberCoroutineScope()
     val exercises by rememberFlow(emptyList<Exercise>()) { App.dao.exercisesFlow() }
+    val enabled = exercises.count { it.enabled }
 
     fun move(i: Int, delta: Int) {
         val j = i + delta
@@ -58,30 +67,40 @@ fun ProgramScreen(nav: (Route) -> Unit, onBack: () -> Unit) {
         }
     }
 
-    Screen("Program", onBack) {
-        Muted("Tap an exercise to edit its dose, cues or animation. Toggle to include it in sessions.")
+    Screen("Program", onBack = null, inTabs = true) {
+        Muted("$enabled of ${exercises.size} exercises in your session. Tap one to change its dose, cues or clip.")
         exercises.forEachIndexed { i, e ->
-            Card(Modifier.fillMaxWidth().clickable { nav(Route.EditExercise(e.id)) }) {
-                Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+            val alpha = if (e.enabled) 1f else 0.55f
+            Card(
+                Modifier.fillMaxWidth().clickable { nav(Route.EditExercise(e.id)) },
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Row(Modifier.padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(64.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerHigh).alpha(alpha)
+                    ) {
+                        ExerciseFigure(e.id, e.category, Modifier.size(64.dp).padding(4.dp))
+                    }
+                    Spacer(Modifier.size(12.dp))
+                    Column(Modifier.weight(1f).alpha(alpha), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(e.name, fontWeight = FontWeight.SemiBold)
                         Muted(doseText(e))
-                        val badges = listOfNotNull(
-                            if (e.pendingPhysio) "pending physio" else null,
-                            if (e.inShortSession) "short session" else null,
-                            "level ${e.level}",
-                        )
-                        Text(badges.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (e.pendingPhysio) Pill("pending physio", Palette.PainMid)
+                            if (e.inShortSession) Pill("short", MaterialTheme.colorScheme.primary)
+                            if (e.level > 1) Pill("level ${e.level}", MaterialTheme.colorScheme.tertiary)
+                        }
                     }
                     Column {
-                        IconButton(onClick = { move(i, -1) }, enabled = i > 0) { Icon(Icons.Filled.KeyboardArrowUp, "Move up") }
-                        IconButton(onClick = { move(i, 1) }, enabled = i < exercises.size - 1) { Icon(Icons.Filled.KeyboardArrowDown, "Move down") }
+                        IconButton(onClick = { move(i, -1) }, enabled = i > 0, modifier = Modifier.size(36.dp)) { Icon(Icons.Filled.KeyboardArrowUp, "Move up") }
+                        IconButton(onClick = { move(i, 1) }, enabled = i < exercises.size - 1, modifier = Modifier.size(36.dp)) { Icon(Icons.Filled.KeyboardArrowDown, "Move down") }
                     }
                     Switch(checked = e.enabled, onCheckedChange = { on -> scope.launch(Dispatchers.IO) { App.dao.upsertExercise(e.copy(enabled = on)) } })
                 }
             }
         }
-        Button(onClick = { nav(Route.EditExercise(null)) }, modifier = Modifier.fillMaxWidth()) { Text("Add exercise") }
+        Button(onClick = { nav(Route.EditExercise(null)) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = MaterialTheme.shapes.large) { Text("Add exercise") }
     }
 }
 
