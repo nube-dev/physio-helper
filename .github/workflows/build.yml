@@ -1,0 +1,58 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build signed APK
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: gradle :app:assembleRelease --no-daemon 2>&1 | tee build.log
+
+      - name: Report build errors on the commit
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Build ${{ github.run_number }} failed:"
+            echo '```'
+            grep -E "^e: |error:|What went wrong|Could not|Unresolved|> Task .* FAILED" -A2 build.log | head -200 || tail -80 build.log
+            echo '```'
+          } > err.md
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -F body=@err.md || true
+
+      - name: Name APK
+        run: cp app/build/outputs/apk/release/app-release.apk "PhysioHelper-${{ github.run_number }}.apk"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Physio Helper build ${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          files: PhysioHelper-${{ github.run_number }}.apk
+          make_latest: true
