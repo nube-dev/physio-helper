@@ -37,5 +37,6 @@ Animations: see [docs/ANIMATIONS.md](docs/ANIMATIONS.md).
 Kotlin, Jetpack Compose, Room. `gradle :app:assembleRelease` with Gradle 8.9 and JDK 17,
 or just push and let GitHub Actions build it.
 
-The signing key in `signing/` exists only so successive builds can update each other on
-the phone. Keep this repository private.
+Release APKs are signed in CI with a key held in the repository secrets
+`KEYSTORE_B64` (base64 of a PKCS12 keystore, alias `physio`) and `KEYSTORE_PASSWORD`.
+Local release builds without those environment variables come out unsigned.

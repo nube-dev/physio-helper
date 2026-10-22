@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,10 +6,11 @@ plugins {
 }
 
 val buildNumber = (System.getenv("BUILD_NUMBER") ?: "1").toInt()
-val signingProps = Properties().apply {
-    val f = rootProject.file("signing/keystore.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
-}
+
+// Release signing comes from the environment (GitHub Actions secrets), never from the repo.
+// Without KEYSTORE_PATH the release APK is built unsigned; debug builds use the default debug key.
+val keystorePath: String? = System.getenv("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+val keystorePassword: String? = System.getenv("KEYSTORE_PASSWORD")
 
 android {
     namespace = "com.nube.physiohelper"
@@ -26,21 +25,20 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("signing/release.jks")
-            storePassword = signingProps.getProperty("storePassword")
-            keyAlias = signingProps.getProperty("keyAlias")
-            keyPassword = signingProps.getProperty("storePassword")
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                keyAlias = "physio"
+                keyPassword = keystorePassword
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
-        }
-        debug {
-            signingConfig = signingConfigs.getByName("release")
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 

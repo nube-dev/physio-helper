@@ -27,13 +27,26 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Restore signing key from secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secrets KEYSTORE_B64 and KEYSTORE_PASSWORD are not set. Refusing to publish an APK signed with any other key."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
       - name: Build signed APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: gradle :app:assembleRelease --no-daemon 2>&1 | tee build.log
 
       - name: Report build errors on the commit
-        if: failure()
+        if: failure() && hashFiles('build.log') != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
