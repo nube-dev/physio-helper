@@ -90,8 +90,12 @@ fun TodayScreen(nav: (Route) -> Unit) {
     val adh = Analysis.adherence(sessions, s.weeklyTarget, 7, today)
     val doneToday = sessions.firstOrNull { it.date == todayStr && it.status == SessionStatus.COMPLETED }
     val todayCheck = checkIns.firstOrNull { it.date == todayStr }
-    val enabledCount = exercises.count { it.enabled }
-    val shortCount = exercises.count { it.enabled && it.inShortSession }
+    val enabledList = exercises.filter { it.enabled }
+    val shortList = enabledList.filter { it.inShortSession }
+    val enabledCount = enabledList.size
+    val shortCount = shortList.size
+    val fullMin = Analysis.estimateMin(enabledList, s.getReadySec)
+    val shortMin = Analysis.estimateMin(shortList, s.getReadySec)
     val backupDays = if (s.lastBackupAt == 0L) null else ((System.currentTimeMillis() - s.lastBackupAt) / 86_400_000L).toInt()
 
     val insight = remember(sessions, checkIns, logs, exercises, spadi) {
@@ -147,7 +151,7 @@ fun TodayScreen(nav: (Route) -> Unit) {
                         when {
                             doneToday != null -> "Done today" + (doneToday.peakPain?.let { " · peak pain $it" } ?: "")
                             engine.active -> "Session in progress"
-                            else -> "$enabledCount exercises · 35–40 min"
+                            else -> "$enabledCount exercises · ~$fullMin min"
                         },
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                     )
@@ -158,7 +162,7 @@ fun TodayScreen(nav: (Route) -> Unit) {
             } else if (doneToday == null) {
                 BigButton("Start session") { start(SessionType.FULL) }
                 TextButton(onClick = { start(SessionType.SHORT) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Bad day? Short session · $shortCount exercises · ~15 min", color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Bad day? Short session · $shortCount exercises · ~$shortMin min", color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             } else {
                 Text("Nice. Rest the shoulder; log the morning check tomorrow.", color = MaterialTheme.colorScheme.onPrimaryContainer)

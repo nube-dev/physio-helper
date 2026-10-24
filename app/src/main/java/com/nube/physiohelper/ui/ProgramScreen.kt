@@ -68,7 +68,7 @@ fun ProgramScreen(nav: (Route) -> Unit) {
     }
 
     Screen("Program", onBack = null, inTabs = true) {
-        Muted("$enabled of ${exercises.size} exercises in your session. Tap one to change its dose, cues or clip.")
+        Muted("$enabled of ${exercises.size} exercises in your session, about ${com.nube.physiohelper.analysis.Analysis.estimateMin(exercises.filter { it.enabled }, App.settings.getReadySec)} min. Tap one to change its dose, cues or clip.")
         exercises.forEachIndexed { i, e ->
             val alpha = if (e.enabled) 1f else 0.55f
             Card(

@@ -52,14 +52,16 @@ object Exporter {
         sb.appendLine()
 
         sb.appendLine("## Current program (enabled)")
-        for (e in exercises.filter { it.enabled }) sb.appendLine("- ${e.name}: ${dose(e)}")
+        val enabled = exercises.filter { it.enabled }
+        for (e in enabled) sb.appendLine("- ${e.name}: ${dose(e)}")
+        sb.appendLine("Estimated full session: ~${Analysis.estimateMin(enabled, s.getReadySec)} min.")
         val disabled = exercises.filter { !it.enabled }
         if (disabled.isNotEmpty()) sb.appendLine("Disabled: " + disabled.joinToString { it.name + if (it.pendingPhysio) " (pending physio)" else "" })
         sb.appendLine()
 
         val adh = Analysis.adherence(sessions, s.weeklyTarget, days, today)
         sb.appendLine("## Adherence")
-        sb.appendLine("Target ${s.weeklyTarget}/week. Days with a completed session: ${adh.completedDays} of $days. Current streak: ${adh.streak} days.")
+        sb.appendLine("Target ${s.weeklyTarget}/week. Days with a completed session: ${adh.completedDays} of $days. Current streak: ${adh.streak} day${if (adh.streak == 1) "" else "s"}.")
         sb.appendLine("Weekly counts (newest first): " + adh.lastWeeks.joinToString { "${it.first}: ${it.second}" })
         sb.appendLine()
 
@@ -82,8 +84,12 @@ object Exporter {
         val stats = Analysis.exerciseStats(logs, exercises, sessions, checkIns, days, today)
         if (stats.isEmpty()) sb.appendLine("No exercises logged.")
         for (st in stats) {
-            sb.append("- ${st.name}: ${st.count} logs, F/P/S ${st.full}/${st.partial}/${st.skipped}, ")
-            sb.append("pain avg ${"%.1f".format(Locale.US, st.avgPain)} max ${st.maxPain}, effort E/M/H ${st.easy}/${st.moderate}/${st.hard}")
+            sb.append("- ${st.name}: ${st.count} logs, F/P/S ${st.full}/${st.partial}/${st.skipped}")
+            if (st.full + st.partial == 0) {
+                sb.append(", skipped every time")
+            } else {
+                sb.append(", pain avg ${"%.1f".format(Locale.US, st.avgPain)} max ${st.maxPain}, effort E/M/H ${st.easy}/${st.moderate}/${st.hard}")
+            }
             if (st.topTags.isNotEmpty()) sb.append(", tags: " + st.topTags.joinToString { "${it.first}×${it.second}" })
             st.advice?.let { sb.append(" → ${it.text}") }
             sb.appendLine()
@@ -91,12 +97,16 @@ object Exporter {
         sb.appendLine()
 
         sb.appendLine("## Session log")
-        val recentSessions = sessions.filter { it.date >= since && it.status != SessionStatus.IN_PROGRESS }
-        if (recentSessions.isEmpty()) sb.appendLine("No sessions.")
         val logsBySession = logs.groupBy { it.sessionId }
+        val recentSessions = sessions.filter {
+            it.date >= since && it.status != SessionStatus.IN_PROGRESS &&
+                !(it.status == SessionStatus.ABANDONED && logsBySession[it.id].isNullOrEmpty())
+        }
+        if (recentSessions.isEmpty()) sb.appendLine("No sessions.")
         for (sess in recentSessions) {
             val mins = sess.endedAt?.let { ((it - sess.startedAt) / 60000).toInt() }
-            sb.append("### ${sess.date} ${sess.type.lowercase()} session, ${sess.status.lowercase()}")
+            val status = if (sess.status == SessionStatus.ABANDONED) "discarded (not in stats)" else sess.status.lowercase()
+            sb.append("### ${sess.date} ${sess.type.lowercase()} session, $status")
             if (mins != null) sb.append(", $mins min")
             sess.peakPain?.let { sb.append(", peak pain $it") }
             sb.appendLine()

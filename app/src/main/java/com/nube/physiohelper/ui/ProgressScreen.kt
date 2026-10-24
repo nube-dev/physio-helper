@@ -265,6 +265,10 @@ private fun StatCard(st: ExerciseStats, ex: Exercise?) {
                 Muted("${st.count} logs · ${st.fullPct}% complete · ${st.partial} partial · ${st.skipped} skipped")
             }
         }
+        if (st.full + st.partial == 0) {
+            Muted("Skipped every time")
+            return@SectionCard
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Pain", Modifier.size(width = 64.dp, height = 20.dp), style = MaterialTheme.typography.bodySmall)
             Box(Modifier.weight(1f)) { MeterBar((st.avgPain / 10).toFloat(), painColor(st.avgPain.toInt())) }

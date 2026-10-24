@@ -72,7 +72,7 @@ class ReminderReceiver : BroadcastReceiver() {
         when (type) {
             ReminderScheduler.T_SESSION -> if (dao.completedSessionsOn(today) == 0) {
                 Notifications.simple(context, Notifications.REMINDER_ID, "Shoulder session time",
-                    "35–40 minutes. Short on time? The 15-minute short session still counts.", "home")
+                    "Short on time? The short session still counts.", "home")
             }
             ReminderScheduler.T_CHECKIN -> if (dao.checkIn(today) == null) Notifications.checkIn(context)
             ReminderScheduler.T_NUDGE -> if (dao.completedSessionsOn(today) == 0) {

@@ -111,8 +111,11 @@ object Analysis {
         windowDays: Int?,
         today: LocalDate = LocalDate.now(),
     ): List<ExerciseStats> {
+        // Only logs from saved sessions count; a discarded session's logs are noise.
+        val savedIds = completed(sessions).map { it.id }.toSet()
+        val saved = logs.filter { it.sessionId in savedIds }
         val since = windowDays?.let { today.minusDays(it.toLong() - 1).toString() }
-        val inWindow = if (since == null) logs else logs.filter { it.date >= since }
+        val inWindow = if (since == null) saved else saved.filter { it.date >= since }
         val flareDates = flaredSessionDates(flares(sessions, checkIns))
         val byId = inWindow.groupBy { it.exerciseId }
         val exMap = exercises.associateBy { it.id }
@@ -130,7 +133,7 @@ object Analysis {
                 5.0 * skipped / n +
                 3.0 * hard / n +
                 2.0 * (tagCounts.sumOf { it.second }.toDouble() / n).coerceAtMost(2.0)
-            val allForEx = logs.filter { it.exerciseId == id }.sortedByDescending { it.loggedAt }
+            val allForEx = saved.filter { it.exerciseId == id }.sortedByDescending { it.loggedAt }
             ExerciseStats(
                 exerciseId = id,
                 name = exMap[id]?.name ?: list.last().exerciseName,
@@ -178,6 +181,18 @@ object Analysis {
             else -> Advice(Advice.Kind.ASK_PHYSIO, "Comfortable at the current level. Ask the physio for the next step.")
         }
     }
+
+    /** Rough seconds an exercise takes in the session runner, including get-ready and logging. */
+    fun estimateSec(e: Exercise, getReadySec: Int): Int =
+        if (e.mode == com.nube.physiohelper.data.Mode.TIMED) {
+            e.durationSec + getReadySec + 15
+        } else {
+            e.sets * e.reps * (e.upSec + e.holdSec + e.downSec + e.restSec) +
+                (e.sets - 1).coerceAtLeast(0) * e.setRestSec + getReadySec + 20
+        }
+
+    fun estimateMin(list: List<Exercise>, getReadySec: Int): Int =
+        (list.sumOf { estimateSec(it, getReadySec) } + 30) / 60
 
     fun spadiScores(answers: List<Int>): Triple<Double, Double, Double> {
         val pain = answers.take(5).filter { it >= 0 }
