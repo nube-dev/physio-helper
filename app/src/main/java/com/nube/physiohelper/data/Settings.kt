@@ -58,6 +58,9 @@ class Settings(context: Context) {
         get() = bool("beeps_on", true); set(v) = setBool("beeps_on", v)
     var vibrateOn: Boolean
         get() = bool("vibrate_on", true); set(v) = setBool("vibrate_on", v)
+    /** Seconds before the end of a hold when the spoken countdown starts (0 = off). */
+    var countdownFrom: Int
+        get() = int("countdown_from", 3); set(v) = setInt("countdown_from", v)
     var getReadySec: Int
         get() = int("get_ready_sec", 5); set(v) = setInt("get_ready_sec", v)
 

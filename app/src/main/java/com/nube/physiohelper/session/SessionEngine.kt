@@ -110,7 +110,7 @@ object SessionEngine {
         update(s.copy(repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, paused = false, draft = LogDraft()))
         if (gr > 0) {
             enter(Phase.GET_READY, gr)
-            speaker?.say("${ex.name}. Get ready.")
+            speaker?.say("${ex.name}. Get ready.", flush = true)
         } else {
             firstPhase(ex)
         }
@@ -121,7 +121,7 @@ object SessionEngine {
         if (!s.phase.isTiming) return
         val p = !s.paused
         update(s.copy(paused = p))
-        speaker?.say(if (p) "Paused" else "Go")
+        speaker?.say(if (p) "Paused" else "Go", flush = true)
     }
 
     fun pause() { if (s.phase.isTiming && !s.paused) update(s.copy(paused = true)) }
@@ -176,7 +176,7 @@ object SessionEngine {
             update(st.copy(index = nextIndex, phase = Phase.READY, loggedPains = pains, loggedCount = st.loggedCount + 1, draft = LogDraft()))
         } else {
             update(st.copy(phase = Phase.SUMMARY, loggedPains = pains, loggedCount = st.loggedCount + 1))
-            speaker?.say("Session complete. Well done.")
+            speaker?.say("Session complete. Well done.", flush = true)
         }
     }
 
@@ -258,7 +258,10 @@ object SessionEngine {
 
     private fun countdownCue(phase: Phase, left: Int) {
         when (phase) {
-            Phase.HOLD -> if (left <= 3) speaker?.say(left.toString())
+            Phase.HOLD -> if (left <= App.settings.countdownFrom) {
+                speaker?.beep()
+                speaker?.say(numberWord(left))
+            }
             Phase.GET_READY, Phase.REST, Phase.SET_REST -> if (left <= 3) speaker?.beep()
             Phase.TIMED -> when {
                 left == 60 -> speaker?.say("One minute left")
@@ -269,6 +272,10 @@ object SessionEngine {
             else -> {}
         }
     }
+
+    private fun numberWord(n: Int): String = listOf(
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    ).getOrElse(n) { n.toString() }
 
     private fun enter(phase: Phase, seconds: Int) {
         update(s.copy(phase = phase, secondsLeft = seconds, phaseTotal = seconds))
@@ -353,6 +360,6 @@ object SessionEngine {
             pain = pain ?: 0,
         )
         update(st.copy(phase = Phase.LOG, paused = false, draft = draft))
-        if (completion != Completion.SKIPPED) speaker?.say("${ex.name} done. Log it.")
+        if (completion != Completion.SKIPPED) speaker?.say("${ex.name} done. Log it.", flush = true)
     }
 }

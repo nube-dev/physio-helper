@@ -65,6 +65,7 @@ fun SettingsScreen(nav: (Route) -> Unit, onBack: () -> Unit) {
         SectionCard("Session") {
             PrefStepper("Weekly target", s.weeklyTarget, 1, 7, suffix = " /wk") { s.weeklyTarget = it }
             PrefStepper("Get-ready countdown", s.getReadySec, 0, 20, suffix = "s") { s.getReadySec = it }
+            PrefStepper("Hold countdown from", s.countdownFrom, 0, 10, suffix = "s") { s.countdownFrom = it }
             PrefSwitch("Keep screen on during session", s.keepScreenOn) { s.keepScreenOn = it }
             PrefSwitch("Voice cues", s.voiceOn, "Rep counts, hold countdown, rest calls") { s.voiceOn = it }
             PrefSwitch("Beeps", s.beepsOn) { s.beepsOn = it }

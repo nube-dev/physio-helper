@@ -23,11 +23,26 @@ class Speaker(context: Context, private val settings: Settings) : TextToSpeech.O
         if (ready) {
             val r = tts?.setLanguage(Locale("en", "IN"))
             if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) tts?.setLanguage(Locale.ENGLISH)
-            tts?.setSpeechRate(1.05f)
+            // Network voices can take a second or more to start, which swallows a 3-2-1 countdown.
+            runCatching {
+                val local = tts?.voices.orEmpty().filter {
+                    it.locale.language == "en" && !it.isNetworkConnectionRequired &&
+                        TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED !in it.features
+                }
+                val pick = local.firstOrNull { it.locale.country == "IN" }
+                    ?: local.firstOrNull { it.locale.country == "US" }
+                    ?: local.firstOrNull()
+                if (pick != null) tts?.voice = pick
+            }
+            tts?.setSpeechRate(1.1f)
         }
     }
 
-    fun say(text: String, flush: Boolean = true) {
+    /**
+     * Speak [text]. Queued by default so a short cue (a countdown number) is never cut off by the
+     * next one; [flush] = true only for cues that should interrupt (pause, a new exercise).
+     */
+    fun say(text: String, flush: Boolean = false) {
         if (!settings.voiceOn || !ready) return
         tts?.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "u${utterance++}")
     }
