@@ -71,8 +71,10 @@ class ReminderReceiver : BroadcastReceiver() {
         val today = App.today()
         when (type) {
             ReminderScheduler.T_SESSION -> if (dao.completedSessionsOn(today) == 0) {
+                val legDay = java.time.LocalDate.now().dayOfWeek.value in App.settings.strengthDays
                 Notifications.simple(context, Notifications.REMINDER_ID, "Shoulder session time",
-                    "Short on time? The short session still counts.", "home")
+                    if (legDay) "Plus leg strength today. Short on time? The short shoulder session still counts."
+                    else "Short on time? The short session still counts.", "home")
             }
             ReminderScheduler.T_CHECKIN -> if (dao.checkIn(today) == null) Notifications.checkIn(context)
             ReminderScheduler.T_NUDGE -> if (dao.completedSessionsOn(today) == 0) {

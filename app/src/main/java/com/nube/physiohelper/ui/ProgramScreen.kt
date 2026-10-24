@@ -47,6 +47,11 @@ import com.nube.physiohelper.App
 import com.nube.physiohelper.data.Category
 import com.nube.physiohelper.data.Exercise
 import com.nube.physiohelper.data.Mode
+import com.nube.physiohelper.data.Program
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,7 +59,9 @@ import kotlinx.coroutines.withContext
 @Composable
 fun ProgramScreen(nav: (Route) -> Unit) {
     val scope = rememberCoroutineScope()
-    val exercises by rememberFlow(emptyList<Exercise>()) { App.dao.exercisesFlow() }
+    val all by rememberFlow(emptyList<Exercise>()) { App.dao.exercisesFlow() }
+    var tab by rememberSaveable { mutableIntStateOf(Program.REHAB) }
+    val exercises = all.filter { it.program == tab }
     val enabled = exercises.count { it.enabled }
 
     fun move(i: Int, delta: Int) {
@@ -68,6 +75,17 @@ fun ProgramScreen(nav: (Route) -> Unit) {
     }
 
     Screen("Program", onBack = null, inTabs = true) {
+        TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
+            Tab(selected = tab == Program.REHAB, onClick = { tab = Program.REHAB }, text = { Text("Shoulder rehab") })
+            Tab(selected = tab == Program.STRENGTH, onClick = { tab = Program.STRENGTH }, text = { Text("Leg strength") })
+        }
+        if (tab == Program.STRENGTH) {
+            SectionCard(container = MaterialTheme.colorScheme.secondaryContainer) {
+                Text("Days: " + App.settings.strengthDays.sorted().joinToString(" · ") { dayNames[it - 1].second } + " (change in Settings)")
+                Text("Avoid for now: planks, side planks, push-ups and bird dogs, and anything held in your right hand.", fontWeight = FontWeight.SemiBold)
+                Muted("Make it harder once every set reaches the top of its range easily: 3 s down with a 1 s pause, then the harder version (no chair, single-leg bridge, deeper split squat). Weight only after the shoulder is cleared.")
+            }
+        }
         Muted("$enabled of ${exercises.size} exercises in your session, about ${com.nube.physiohelper.analysis.Analysis.estimateMin(exercises.filter { it.enabled }, App.settings.getReadySec)} min. Tap one to change its dose, cues or clip.")
         exercises.forEachIndexed { i, e ->
             val alpha = if (e.enabled) 1f else 0.55f
@@ -146,11 +164,17 @@ fun EditExerciseScreen(id: String?, onBack: () -> Unit) {
         }
         SectionCard("Type") {
             SingleChoice(Category.all.map { it to it.lowercase().replaceFirstChar { c -> c.uppercase() } }, cur.category) { upd(cur.copy(category = it)) }
-            SingleChoice(listOf(Mode.REPS to "Reps & holds", Mode.TIMED to "Single timer"), cur.mode) { upd(cur.copy(mode = it)) }
+            SingleChoice(listOf(Mode.REPS to "Timed reps & holds", Mode.SETS to "Self-paced sets", Mode.TIMED to "Single timer"), cur.mode) { upd(cur.copy(mode = it)) }
+            SingleChoice(listOf(Program.REHAB to "Shoulder rehab", Program.STRENGTH to "Leg strength"), cur.program) { upd(cur.copy(program = it)) }
         }
         SectionCard("Dose") {
             if (cur.mode == Mode.TIMED) {
                 Stepper("Duration", cur.durationSec / 60, { upd(cur.copy(durationSec = it * 60)) }, 1, 60, 1, " min")
+            } else if (cur.mode == Mode.SETS) {
+                Stepper("Sets", cur.sets, { upd(cur.copy(sets = it)) }, 1, 10)
+                Stepper("Reps, low end", cur.reps, { upd(cur.copy(reps = it, repsMax = maxOf(it, cur.repsMax))) }, 1, 100)
+                Stepper("Reps, top end", cur.repsTop, { upd(cur.copy(repsMax = maxOf(it, cur.reps))) }, 1, 100)
+                Stepper("Rest between sets", cur.setRestSec, { upd(cur.copy(setRestSec = it)) }, 0, 300, 5, "s")
             } else {
                 Stepper("Sets", cur.sets, { upd(cur.copy(sets = it)) }, 1, 10)
                 Stepper("Reps per set", cur.reps, { upd(cur.copy(reps = it)) }, 1, 50)

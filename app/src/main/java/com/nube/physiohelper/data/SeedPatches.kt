@@ -5,7 +5,7 @@ package com.nube.physiohelper.data
  * Only text fields are replaced; the user's dose, order, enabled state and clips are kept.
  */
 object SeedPatches {
-    private const val LATEST = 1
+    private const val LATEST = 2
 
     suspend fun apply(dao: AppDao, settings: Settings) {
         val from = settings.seedPatch
@@ -20,6 +20,11 @@ object SeedPatches {
 
         // 1: wall 5 is a straight-arm palm push forward (mirror of wall 1), not a bent-elbow fist push.
         if (from < 1) refreshText("wall_5_flexion")
+
+        // 2: the leg strength program.
+        if (from < 2) {
+            for (e in Seed.strength()) if (dao.exercise(e.id) == null) dao.upsertExercise(e)
+        }
 
         settings.seedPatch = LATEST
     }

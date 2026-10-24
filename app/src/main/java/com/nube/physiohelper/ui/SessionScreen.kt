@@ -46,6 +46,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -89,6 +90,9 @@ import kotlin.math.sin
 
 fun doseText(e: Exercise): String = if (e.mode == Mode.TIMED) {
     "${e.durationSec / 60} min"
+} else if (e.mode == Mode.SETS) {
+    "${e.sets} × " + (if (e.repsMax > e.reps) "${e.reps}–${e.repsMax}" else "${e.reps}") +
+        (if (e.sides == 2) " each ${e.sideWord}" else "") + " · ${e.setRestSec}s rest"
 } else buildString {
     append("${e.sets} × ${e.reps}")
     val parts = mutableListOf<String>()
@@ -147,6 +151,7 @@ fun SessionScreen(onBack: () -> Unit) {
                 ex == null -> Text("Nothing to do.")
                 st.phase == Phase.READY -> Scrolling { ReadyPanel(ex, st) }
                 st.phase == Phase.LOG -> Scrolling { LogPanel(ex, st) }
+                st.phase == Phase.WORK -> Scrolling { WorkPanel(ex, st) }
                 else -> RunningPanel(ex, st)
             }
         }
@@ -383,6 +388,58 @@ private fun RoundAction(label: String, bg: Color, fg: Color, sizeDp: Int, outlin
     }
 }
 
+/** Self-paced set: do the reps, adjust the count if needed, tap Done. */
+@Composable
+private fun WorkPanel(ex: Exercise, st: EngineState) {
+    var painDialog by remember { mutableStateOf(false) }
+    var painValue by remember { mutableIntStateOf(4) }
+    val range = if (ex.repsMax > ex.reps) "${ex.reps}–${ex.repsMax}" else "${ex.reps}"
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(ex.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (ex.sides == 2) Pill(if (st.side == 0) "Right ${ex.sideWord}" else "Left ${ex.sideWord}", MaterialTheme.colorScheme.primary)
+    }
+    Box(Modifier.graphicsLayer { scaleX = if (st.side == 1) -1f else 1f }) {
+        ExerciseMedia(ex, height = 220.dp)
+    }
+    SectionCard(container = MaterialTheme.colorScheme.primaryContainer) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Set ${st.set} of ${ex.sets}", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+            Text("$range reps", fontSize = 44.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            if (st.setReps.isNotEmpty()) Muted("Done so far: " + st.setReps.joinToString(" · "))
+        }
+    }
+    if (ex.cues.isNotBlank()) Muted(ex.cues)
+    SectionCard {
+        Stepper("Reps you did", st.pendingReps, { SessionEngine.setPendingReps(it) }, 0, 200)
+    }
+    Button(
+        onClick = { SessionEngine.completeSet() },
+        modifier = Modifier.fillMaxWidth().height(64.dp),
+        shape = MaterialTheme.shapes.large,
+    ) { Text("Done", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { painValue = 4; painDialog = true }, modifier = Modifier.weight(1f)) { Text("Pain", color = MaterialTheme.colorScheme.error) }
+        OutlinedButton(onClick = { SessionEngine.endExerciseEarly() }, modifier = Modifier.weight(1f)) { Text("Stop & log") }
+        OutlinedButton(onClick = { SessionEngine.skip() }, modifier = Modifier.weight(1f)) { Text("Skip") }
+    }
+
+    if (painDialog) {
+        AlertDialog(
+            onDismissRequest = { painDialog = false },
+            title = { Text("How bad is it right now?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PainPicker(painValue, { painValue = it })
+                    Text(if (painValue > 3) "Stop this exercise. Leg work shouldn't hurt your shoulder; check you're not bracing with the right arm." else "Within the limit. Carry on if it settles.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { painDialog = false; SessionEngine.stopForPain(painValue) }) { Text("Stop exercise") } },
+            dismissButton = { TextButton(onClick = { painDialog = false }) { Text("Continue") } },
+        )
+    }
+}
+
 @Composable
 private fun LogPanel(ex: Exercise, st: EngineState) {
     val d = st.draft
@@ -417,7 +474,7 @@ private fun LogPanel(ex: Exercise, st: EngineState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when (d.completion) {
-                    Completion.FULL -> "Completed: ${d.repsDone} reps"
+                    Completion.FULL -> if (st.setReps.isNotEmpty()) "Sets: " + st.setReps.joinToString(" · ") else "Completed: ${d.repsDone} reps"
                     Completion.PARTIAL -> "Partial: ${d.repsDone} reps"
                     else -> "Skipped"
                 },

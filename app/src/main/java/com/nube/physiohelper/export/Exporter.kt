@@ -51,10 +51,17 @@ object Exporter {
         sb.appendLine("Pain scores are 0–10. Effort: E=easy, M=moderate, H=hard. Completion: F=full, P=partial, S=skipped.")
         sb.appendLine()
 
-        sb.appendLine("## Current program (enabled)")
-        val enabled = exercises.filter { it.enabled }
+        sb.appendLine("## Current shoulder program (enabled)")
+        val enabled = exercises.filter { it.enabled && it.program == com.nube.physiohelper.data.Program.REHAB }
         for (e in enabled) sb.appendLine("- ${e.name}: ${dose(e)}")
         sb.appendLine("Estimated full session: ~${Analysis.estimateMin(enabled, s.getReadySec)} min.")
+        val legs = exercises.filter { it.enabled && it.program == com.nube.physiohelper.data.Program.STRENGTH }
+        if (legs.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("## Leg strength program (days: ${s.strengthDays.sorted().joinToString { java.time.DayOfWeek.of(it).name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() } }})")
+            for (e in legs) sb.appendLine("- ${e.name}: ${dose(e)}")
+            sb.appendLine("Estimated leg session: ~${Analysis.estimateMin(legs, s.getReadySec)} min.")
+        }
         val disabled = exercises.filter { !it.enabled }
         if (disabled.isNotEmpty()) sb.appendLine("Disabled: " + disabled.joinToString { it.name + if (it.pendingPhysio) " (pending physio)" else "" })
         sb.appendLine()
@@ -62,6 +69,8 @@ object Exporter {
         val adh = Analysis.adherence(sessions, s.weeklyTarget, days, today)
         sb.appendLine("## Adherence")
         sb.appendLine("Target ${s.weeklyTarget}/week. Days with a completed session: ${adh.completedDays} of $days. Current streak: ${adh.streak} day${if (adh.streak == 1) "" else "s"}.")
+        val legSessions = sessions.count { it.type == com.nube.physiohelper.data.SessionType.STRENGTH && it.status == SessionStatus.COMPLETED && it.date >= since }
+        sb.appendLine("Leg strength sessions in this period: $legSessions (target ${s.strengthDays.size}/week).")
         sb.appendLine("Weekly counts (newest first): " + adh.lastWeeks.joinToString { "${it.first}: ${it.second}" })
         sb.appendLine()
 
@@ -132,6 +141,9 @@ object Exporter {
 
     private fun dose(e: Exercise): String = if (e.mode == Mode.TIMED) {
         "${e.durationSec / 60} min"
+    } else if (e.mode == Mode.SETS) {
+        "${e.sets}×" + (if (e.repsMax > e.reps) "${e.reps}–${e.repsMax}" else "${e.reps}") +
+            (if (e.sides == 2) " each ${e.sideWord}" else "") + ", ${e.setRestSec}s rest between sets"
     } else buildString {
         append("${e.sets}×${e.reps}")
         val parts = mutableListOf<String>()
@@ -150,6 +162,7 @@ object Exporter {
         val eff = when (l.effort) { Effort.EASY -> "E"; Effort.MODERATE -> "M"; Effort.HARD -> "H"; else -> "-" }
         val sb = StringBuilder("${l.exerciseName}: $c")
         if (l.completion != Completion.SKIPPED) sb.append(" ${l.repsDone}/${l.repsPlanned} reps, pain ${l.pain}, effort $eff")
+        if (!l.setReps.isNullOrBlank()) sb.append(", sets [${l.setReps}]")
         if (l.tags.isNotBlank()) sb.append(", [${l.tags}]")
         if (l.note.isNotBlank()) sb.append(" — ${l.note}")
         return sb.toString()
@@ -239,7 +252,7 @@ object Exporter {
         put("durationSec", e.durationSec); put("bandColor", e.bandColor); put("level", e.level)
         put("inShortSession", e.inShortSession); put("steps", e.steps); put("cues", e.cues)
         put("avoid", e.avoid); put("videoUrl", e.videoUrl); put("mediaUri", e.mediaUri)
-        put("bothSides", e.bothSides)
+        put("bothSides", e.bothSides); put("repsMax", e.repsMax); put("program", e.program)
     }
 
     private fun exFromJson(o: JSONObject) = Exercise(
@@ -254,6 +267,8 @@ object Exporter {
         cues = o.optString("cues"), avoid = o.optString("avoid"), videoUrl = o.optString("videoUrl"),
         mediaUri = o.optString("mediaUri"),
         bothSides = o.optBoolean("bothSides"),
+        repsMax = o.optInt("repsMax"),
+        program = o.optInt("program"),
     )
 
     private fun sessionToJson(s: Session) = JSONObject().apply {
@@ -275,6 +290,7 @@ object Exporter {
         put("setsDone", l.setsDone); put("repsDone", l.repsDone); put("setsPlanned", l.setsPlanned); put("repsPlanned", l.repsPlanned)
         put("pain", l.pain); put("effort", l.effort); put("tags", l.tags); put("note", l.note)
         put("bandColor", l.bandColor); put("level", l.level)
+        put("setReps", l.setReps ?: JSONObject.NULL)
     }
 
     private fun logFromJson(o: JSONObject) = ExerciseLog(
@@ -284,6 +300,7 @@ object Exporter {
         repsDone = o.optInt("repsDone"), setsPlanned = o.optInt("setsPlanned"), repsPlanned = o.optInt("repsPlanned"),
         pain = o.optInt("pain"), effort = o.optString("effort"), tags = o.optString("tags"), note = o.optString("note"),
         bandColor = o.optString("bandColor"), level = o.optInt("level", 1),
+        setReps = if (o.isNull("setReps")) null else o.optString("setReps"),
     )
 
     private fun checkInToJson(c: CheckIn) = JSONObject().apply {

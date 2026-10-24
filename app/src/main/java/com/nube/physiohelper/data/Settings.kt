@@ -47,6 +47,11 @@ class Settings(context: Context) {
     var physioApptAt: Long
         get() = p.getLong("physio_at", 0L); set(v) = p.edit().putLong("physio_at", v).apply()
 
+    /** Leg strength days, 1 = Monday ... 7 = Sunday, comma-separated. */
+    var strengthDays: Set<Int>
+        get() = (p.getString("strength_days", null) ?: "1,3,5").split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+        set(v) = p.edit().putString("strength_days", v.sorted().joinToString(",")).apply()
+
     var weeklyTarget: Int
         get() = int("weekly_target", 5); set(v) = setInt("weekly_target", v)
 

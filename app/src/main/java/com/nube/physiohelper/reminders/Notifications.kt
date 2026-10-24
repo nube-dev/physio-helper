@@ -57,6 +57,7 @@ object Notifications {
             st.phase == Phase.LOG -> "Log ${ex.name}"
             st.phase == Phase.SUMMARY -> "Session done. Save it."
             st.phase == Phase.TIMED -> "${ex.name} · ${fmt(st.secondsLeft)} left"
+            st.phase == Phase.WORK -> "${ex.name} · set ${st.set} of ${ex.sets} · tap Done when finished"
             else -> "${ex.name} · ${st.phase.label} ${st.secondsLeft}s · rep ${st.rep}/${ex.reps}" +
                 (if (ex.sets > 1) " · set ${st.set}/${ex.sets}" else "")
         }

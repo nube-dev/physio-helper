@@ -174,7 +174,8 @@ private fun Calendar(sessions: List<Session>, checkIns: List<CheckIn>, today: Lo
                 val future = d.isAfter(today)
                 val bg = when {
                     day != null && day.any { it.type == SessionType.FULL } -> MaterialTheme.colorScheme.primary
-                    day != null -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    day != null && day.any { it.type == SessionType.SHORT } -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    day != null -> MaterialTheme.colorScheme.tertiary
                     future -> Color.Transparent
                     else -> MaterialTheme.colorScheme.surfaceContainerHighest
                 }
@@ -215,13 +216,14 @@ private fun Calendar(sessions: List<Session>, checkIns: List<CheckIn>, today: Lo
         val day = done[ds].orEmpty()
         val c = checks[ds]
         val parts = mutableListOf<String>()
-        parts += if (day.isEmpty()) "no session" else day.joinToString { (if (it.type == SessionType.SHORT) "short session" else "full session") + (it.peakPain?.let { p -> ", peak pain $p" } ?: "") }
+        parts += if (day.isEmpty()) "no session" else day.joinToString { (when (it.type) { SessionType.SHORT -> "short session"; SessionType.STRENGTH -> "leg session"; else -> "full session" }) + (it.peakPain?.let { p -> ", peak pain $p" } ?: "") }
         c?.let { parts += "morning pain ${it.morningPain}" }
         Text("${pretty(ds)}: " + parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
     }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Legend(MaterialTheme.colorScheme.primary, "full")
         Legend(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), "short")
+        Legend(MaterialTheme.colorScheme.tertiary, "legs only")
         Legend(Palette.PainLow, "morning pain dot", round = true)
     }
 }

@@ -4,6 +4,19 @@ Versions follow [semantic versioning](https://semver.org): patch for fixes, mino
 features, major for changes that break existing data or habits. Each version below is a GitHub
 release with its APK.
 
+## [1.4.0] - 2026-10-24
+### Added
+- Leg strength program, separate from the shoulder rehab: warm-up plus 7 exercises (squat to a
+  chair, split squat, glute bridge, single-leg RDL, wall sit, calf raise, lying leg raise),
+  scheduled Mon/Wed/Fri by default (Settings → Leg strength days).
+- Self-paced sets: do the reps, adjust the count, tap Done; 60 s rest timer between sets;
+  each-leg exercises run right then left. Reps per set are logged and exported.
+- "Make it harder" suggestion once every set reaches the top of its range with easy effort.
+- Animated figures for the leg exercises; Program tab split into Shoulder rehab and Leg strength.
+### Changed
+- Shoulder streak and weekly target count shoulder sessions only; leg days show on the calendar
+  in their own colour.
+
 ## [1.3.0] - 2026-10-24
 ### Added
 - "Both sides" switch per exercise (Program → exercise): all sets on the right arm, then a

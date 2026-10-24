@@ -9,7 +9,54 @@ object Seed {
     private const val PRONE_SETUP = "Lie face-down on a mat, forehead on a folded towel. Pull the shoulder blades down and back first, then lift the arms 5–10 cm, thumbs up."
     private const val BAND_TEMPO = "About 2 s up and 2–3 s down. Control matters more than resistance."
 
-    fun program(): List<Exercise> {
+    fun program(): List<Exercise> = rehab() + strength()
+
+    private const val LEGS_AVOID = "No planks, side planks, push-ups or bird dogs (they load the shoulder), and nothing held in the right hand."
+
+    /** Lower-body strength, 3 days a week. Self-paced sets with 60 s rest. */
+    fun strength(): List<Exercise> {
+        var i = 100
+        fun sets(id: String, name: String, cat: String, sets: Int, lo: Int, hi: Int, steps: String, cues: String, both: Boolean = false) = Exercise(
+            id = id, name = name, category = cat, orderIndex = i++, program = Program.STRENGTH,
+            mode = Mode.SETS, sets = sets, reps = lo, repsMax = hi, setRestSec = 60,
+            upSec = 0, holdSec = 0, downSec = 0, restSec = 0, bothSides = both,
+            steps = steps, cues = cues, avoid = LEGS_AVOID,
+        )
+        return listOf(
+            Exercise(
+                id = "str_warmup", name = "Warm-up", category = Category.OTHER, orderIndex = i++, program = Program.STRENGTH,
+                mode = Mode.TIMED, durationSec = 5 * 60, sets = 1, reps = 1, holdSec = 0, restSec = 0,
+                steps = "March on the spot, leg swings front-to-back and side-to-side, then 10 slow bodyweight squats.",
+                cues = "Easy pace. You should feel warm, not tired.",
+            ),
+            sets("str_squat", "Squat to a chair", Category.LEGS, 3, 12, 15,
+                "Hips back, chest up, knees track over your toes. Touch the chair lightly, don't sit.",
+                "Weight through the heels. Arms forward for balance."),
+            sets("str_split_squat", "Split squat", Category.LEGS, 3, 8, 12,
+                "One foot forward, one back. Drop the back knee straight down, then push up through the front heel.",
+                "Left hand on the wall if needed, never the right.", both = true),
+            sets("str_glute_bridge", "Glute bridge", Category.LEGS, 3, 15, 15,
+                "On your back, knees bent, feet flat. Squeeze your glutes and lift your hips; hold 2 seconds at the top.",
+                "Ribs down; don't arch the lower back."),
+            sets("str_sl_rdl", "Single-leg Romanian deadlift", Category.LEGS, 3, 8, 10,
+                "On one leg, hinge at the hips with a flat back as the other leg goes back. Stand up by squeezing the glute.",
+                "Left hand on a wall or chair.", both = true),
+            Exercise(
+                id = "str_wall_sit", name = "Wall sit", category = Category.LEGS, orderIndex = i++, program = Program.STRENGTH,
+                mode = Mode.REPS, sets = 3, reps = 1, holdSec = 30, restSec = 0, setRestSec = 60,
+                steps = "Back flat on the wall, thighs nearly parallel to the floor, arms relaxed.",
+                cues = "Build from 30 s toward 45 s.", avoid = LEGS_AVOID,
+            ),
+            sets("str_calf_raise", "Calf raise", Category.LEGS, 3, 15, 20,
+                "On a step edge if you have one. Rise onto your toes, then lower slowly below the step.",
+                "Slow on the way down."),
+            sets("str_leg_raise", "Lying leg raise", Category.CORE, 3, 10, 10,
+                "On your back, lower back pressed into the floor. Lower your legs slowly and stop before your back arches.",
+                "Arms by your sides, flat on the floor."),
+        )
+    }
+
+    private fun rehab(): List<Exercise> {
         var i = 0
         fun next() = i++
         return listOf(

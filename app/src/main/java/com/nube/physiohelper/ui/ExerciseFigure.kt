@@ -102,11 +102,14 @@ fun ExerciseFigure(
             id == "band_bicep_curl" -> pen.bandCurl(t)
             id == "band_row_shoulder" -> pen.bandRow(t)
             id == "band_external_rotation" -> pen.bandExternalRotation(t)
+            id.startsWith("str_") -> pen.legs(id, t)
             category == Category.HEAT -> pen.heat(pulse)
             category == Category.STRETCH -> pen.stretchCross(t, force)
             category == Category.WALL -> pen.wallBackStraight(force, pulse)
             category == Category.PRONE -> pen.prone(ProneShape.Y, t)
             category == Category.BAND -> pen.bandFrontRaise(t)
+            category == Category.LEGS -> pen.legs("str_squat", t)
+            category == Category.CORE -> pen.legs("str_leg_raise", t)
             else -> pen.idle(t)
         }
     }
@@ -400,6 +403,141 @@ private class Pen(val d: DrawScope, val s: Float, val ox: Float, val oy: Float, 
         val sh = sideBody(48f)
         val (_, hand) = arm(sh, 0f, lerp(8f, 155f, t), mirror = false)
         band(p(51f, 92f), hand)
+    }
+
+    // ---------- leg strength: posed stick figures, side view facing right ----------
+
+    private fun P(x: Float, y: Float) = floatArrayOf(x, y)
+
+    /** Interpolates every joint between pose [a] (t = 0) and pose [b] (t = 1) and draws the figure. */
+    private fun stick(t: Float, a: Map<String, FloatArray>, b: Map<String, FloatArray>) {
+        fun pt(k: String): Offset {
+            val p0 = a.getValue(k)
+            val p1 = b[k] ?: p0
+            return p(lerp(p0[0], p1[0], t), lerp(p0[1], p1[1], t))
+        }
+        val legs = listOf("hip" to "knee", "knee" to "ankle", "ankle" to "toe", "hip" to "knee2", "knee2" to "ankle2", "ankle2" to "toe2")
+        // far leg first, so the near leg draws over it
+        for ((x, y) in legs.drop(3)) if (x in a && y in a) line(pt(x), pt(y), c.accent, 3.2f, alpha = 0.55f)
+        line(pt("neck"), pt("hip"), c.body, 3.8f)
+        for ((x, y) in legs.take(3)) if (x in a && y in a) line(pt(x), pt(y), c.accent, 3.4f)
+        if ("elbow" in a && "hand" in a) {
+            line(pt("shoulder"), pt("elbow"), c.body, 3f)
+            line(pt("elbow"), pt("hand"), c.body, 3f)
+        }
+        dot(pt("head"), 6f)
+    }
+
+    private fun standing(dy: Float = 0f, torso: Float = 32f): Map<String, FloatArray> {
+        val hipY = 52f + dy
+        val neckY = hipY - torso
+        return mapOf(
+            "head" to P(50f, neckY - 7f), "neck" to P(50f, neckY), "shoulder" to P(50f, neckY + 7f),
+            "hip" to P(50f, hipY), "knee" to P(51f, hipY + 20f), "ankle" to P(50f, hipY + 40f), "toe" to P(56f, hipY + 40f),
+            "elbow" to P(51f, neckY + 21f), "hand" to P(52f, neckY + 34f),
+        )
+    }
+
+    fun legs(id: String, t: Float) {
+        when (id) {
+            "str_warmup" -> {
+                floor()
+                val base = standing()
+                val a = base + mapOf(
+                    "knee" to P(51f, 72f), "ankle" to P(50f, 92f), "toe" to P(56f, 92f),
+                    "knee2" to P(62f, 62f), "ankle2" to P(60f, 80f), "toe2" to P(66f, 80f),
+                    "elbow" to P(45f, 40f), "hand" to P(41f, 52f),
+                )
+                val b = base + mapOf(
+                    "knee" to P(62f, 62f), "ankle" to P(60f, 80f), "toe" to P(66f, 80f),
+                    "knee2" to P(51f, 72f), "ankle2" to P(50f, 92f), "toe2" to P(56f, 92f),
+                    "elbow" to P(57f, 40f), "hand" to P(63f, 50f),
+                )
+                stick(t, a, b)
+            }
+            "str_squat" -> {
+                floor()
+                // chair behind
+                line(p(20f, 71f), p(40f, 71f), c.muted, 2.6f)
+                line(p(22f, 71f), p(22f, 93f), c.muted, 2f)
+                line(p(38f, 71f), p(38f, 93f), c.muted, 2f)
+                line(p(22f, 71f), p(22f, 50f), c.muted, 2f)
+                val a = standing() + mapOf("elbow" to P(64f, 28f), "hand" to P(78f, 28f))
+                val b = mapOf(
+                    "head" to P(58.5f, 34f), "neck" to P(55f, 40f), "shoulder" to P(51.5f, 46f),
+                    "hip" to P(39f, 68f), "knee" to P(58f, 73f), "ankle" to P(50f, 92f), "toe" to P(56f, 92f),
+                    "elbow" to P(66f, 45f), "hand" to P(80f, 45f),
+                )
+                stick(t, a, b)
+            }
+            "str_split_squat" -> {
+                floor()
+                val a = mapOf(
+                    "head" to P(46f, 15f), "neck" to P(46f, 22f), "shoulder" to P(46f, 29f),
+                    "hip" to P(46f, 54f), "knee" to P(55f, 73f), "ankle" to P(60f, 92f), "toe" to P(66f, 92f),
+                    "knee2" to P(36f, 71f), "ankle2" to P(25f, 89f), "toe2" to P(21f, 93f),
+                    "elbow" to P(47f, 43f), "hand" to P(48f, 56f),
+                )
+                val b = mapOf(
+                    "head" to P(44f, 29f), "neck" to P(44f, 36f), "shoulder" to P(44f, 43f),
+                    "hip" to P(44f, 68f), "knee" to P(63f, 72f), "ankle" to P(60f, 92f), "toe" to P(66f, 92f),
+                    "knee2" to P(42f, 88f), "ankle2" to P(25f, 89f), "toe2" to P(21f, 93f),
+                    "elbow" to P(45f, 57f), "hand" to P(46f, 70f),
+                )
+                stick(t, a, b)
+            }
+            "str_glute_bridge" -> {
+                floor()
+                val common = mapOf(
+                    "head" to P(11f, 85f), "neck" to P(18f, 86f),
+                    "ankle" to P(70f, 90f), "toe" to P(76f, 91f), "elbow" to P(34f, 90f), "hand" to P(44f, 91f),
+                )
+                val a = common + mapOf("shoulder" to P(24f, 86.4f), "hip" to P(48f, 88f), "knee" to P(62f, 70f))
+                val b = common + mapOf("shoulder" to P(23.5f, 83.6f), "hip" to P(46f, 74f), "knee" to P(64f, 68f))
+                stick(t, a, b)
+            }
+            "str_sl_rdl" -> {
+                floor()
+                val a = standing() + mapOf("knee2" to P(50f, 72f), "ankle2" to P(49f, 92f), "toe2" to P(55f, 92f))
+                val b = mapOf(
+                    "head" to P(87.7f, 41.9f), "neck" to P(80.9f, 43.7f), "shoulder" to P(74.1f, 45.5f),
+                    "hip" to P(50f, 52f), "knee" to P(53f, 72f), "ankle" to P(50f, 92f), "toe" to P(56f, 92f),
+                    "knee2" to P(30.6f, 56.8f), "ankle2" to P(11.2f, 61.6f), "toe2" to P(11f, 66f),
+                    "elbow" to P(74.5f, 59f), "hand" to P(75f, 72f),
+                )
+                stick(t, a, b)
+            }
+            "str_wall_sit" -> {
+                floor()
+                wall(30f)
+                val pose = mapOf(
+                    "head" to P(36f, 33f), "neck" to P(36f, 40f), "shoulder" to P(36f, 47f),
+                    "hip" to P(36f, 72f), "knee" to P(56f, 72f), "ankle" to P(56f, 92f), "toe" to P(62f, 92f),
+                    "elbow" to P(39f, 61f), "hand" to P(46f, 69f),
+                )
+                stick(0f, pose, pose)
+                // the burn: thighs glow while holding
+                line(p(36f, 72f), p(56f, 72f), c.force, 1.4f, alpha = 0.25f + 0.55f * t)
+            }
+            "str_calf_raise" -> {
+                floor()
+                d.drawRect(c.muted, topLeft = p(40f, 89f), size = Size(32f * s, 4.5f * s), alpha = 0.6f)
+                val a = standing(dy = -3f, torso = 28f) + mapOf("ankle" to P(50f, 87f), "toe" to P(57f, 89f), "knee" to P(51f, 68f))
+                val b = standing(dy = -8f, torso = 28f) + mapOf("ankle" to P(51f, 82f), "toe" to P(57f, 89f), "knee" to P(51f, 63f))
+                stick(t, a, b)
+            }
+            "str_leg_raise" -> {
+                floor()
+                val common = mapOf(
+                    "head" to P(11f, 85f), "neck" to P(18f, 86f), "shoulder" to P(24f, 86f), "hip" to P(48f, 88f),
+                    "elbow" to P(34f, 90f), "hand" to P(44f, 91f),
+                )
+                val a = common + mapOf("knee" to P(53.2f, 68.6f), "ankle" to P(58.4f, 49.2f), "toe" to P(63f, 50f))
+                val b = common + mapOf("knee" to P(67.3f, 82.8f), "ankle" to P(86.6f, 77.6f), "toe" to P(88f, 73f))
+                stick(t, a, b)
+            }
+            else -> idle(t)
+        }
     }
 
     fun bandRow(t: Float) {

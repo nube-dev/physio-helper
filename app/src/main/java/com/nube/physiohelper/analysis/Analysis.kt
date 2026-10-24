@@ -53,8 +53,19 @@ object Analysis {
 
     fun completed(sessions: List<Session>) = sessions.filter { it.status == SessionStatus.COMPLETED }
 
+    /** Completed shoulder-rehab sessions; leg days have their own tracking. */
+    fun rehabDone(sessions: List<Session>) = completed(sessions).filter { it.type != com.nube.physiohelper.data.SessionType.STRENGTH }
+
+    /** Completed leg-strength sessions this week (Monday start). */
+    fun strengthThisWeek(sessions: List<Session>, today: LocalDate = LocalDate.now()): Int {
+        val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        return completed(sessions).count {
+            it.type == com.nube.physiohelper.data.SessionType.STRENGTH && !LocalDate.parse(it.date).isBefore(monday)
+        }
+    }
+
     fun streak(sessions: List<Session>, today: LocalDate = LocalDate.now()): Int {
-        val days = completed(sessions).map { it.date }.toSet()
+        val days = rehabDone(sessions).map { it.date }.toSet()
         var d = if (days.contains(today.toString())) today else today.minusDays(1)
         var n = 0
         while (days.contains(d.toString())) { n++; d = d.minusDays(1) }
@@ -62,7 +73,7 @@ object Analysis {
     }
 
     fun adherence(sessions: List<Session>, target: Int, windowDays: Int, today: LocalDate = LocalDate.now()): Adherence {
-        val done = completed(sessions)
+        val done = rehabDone(sessions)
         val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weeks = (0 until 4).map { w ->
             val start = monday.minusWeeks(w.toLong())
@@ -86,7 +97,7 @@ object Analysis {
      * last completed session before that morning.
      */
     fun flares(sessions: List<Session>, checkIns: List<CheckIn>): List<Flare> {
-        val done = completed(sessions).sortedBy { it.startedAt }
+        val done = rehabDone(sessions).sortedBy { it.startedAt }
         return checkIns.sortedBy { it.date }.mapNotNull { c ->
             val prev = done.lastOrNull { it.date < c.date }
             val prevPeak = prev?.peakPain
@@ -159,6 +170,7 @@ object Analysis {
      * The app only suggests; changing the program is always the user's call.
      */
     fun advice(ex: Exercise, logsNewestFirst: List<ExerciseLog>, flareSessionDates: Set<String>): Advice? {
+        if (ex.mode == com.nube.physiohelper.data.Mode.SETS) return setsAdvice(ex, logsNewestFirst)
         if (ex.mode != com.nube.physiohelper.data.Mode.REPS) return null
         val recent2 = logsNewestFirst.take(2)
         if (recent2.isNotEmpty() && (recent2.any { it.pain >= 5 } || flareSessionDates.contains(recent2.first().date))) {
@@ -182,10 +194,27 @@ object Analysis {
         }
     }
 
+    /** Self-paced sets: top of the range on every set, easy effort, two sessions running. */
+    private fun setsAdvice(ex: Exercise, logsNewestFirst: List<ExerciseLog>): Advice? {
+        val last = logsNewestFirst.take(2)
+        if (last.size < 2) return null
+        val clean = last.all { l ->
+            val reps = l.setReps.orEmpty().split(",").mapNotNull { it.trim().toIntOrNull() }
+            l.completion == Completion.FULL && l.effort == Effort.EASY &&
+                reps.size >= ex.sets * ex.sides && reps.all { it >= ex.repsTop }
+        }
+        return if (clean) Advice(
+            Advice.Kind.LEVEL_UP,
+            "Top of the range on every set: make it harder. Slow it down (3 s down, 1 s pause), or move to the harder version.",
+        ) else null
+    }
+
     /** Rough seconds an exercise takes in the session runner, including get-ready and logging. */
     fun estimateSec(e: Exercise, getReadySec: Int): Int =
         if (e.mode == com.nube.physiohelper.data.Mode.TIMED) {
             e.durationSec + getReadySec + 15
+        } else if (e.mode == com.nube.physiohelper.data.Mode.SETS) {
+            e.sides * e.sets * (e.repsTop * 5 / 2 + 8) + (e.sets - 1).coerceAtLeast(0) * e.setRestSec + getReadySec + 20
         } else {
             e.sides * (e.sets * e.reps * (e.upSec + e.holdSec + e.downSec + e.restSec) +
                 (e.sets - 1).coerceAtLeast(0) * e.setRestSec) + (e.sides - 1) * 8 + getReadySec + 20

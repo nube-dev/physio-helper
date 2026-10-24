@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,7 @@ import com.nube.physiohelper.analysis.Advice
 import com.nube.physiohelper.analysis.Analysis
 import com.nube.physiohelper.data.CheckIn
 import com.nube.physiohelper.data.Exercise
+import com.nube.physiohelper.data.Program
 import com.nube.physiohelper.data.ExerciseLog
 import com.nube.physiohelper.data.Session
 import com.nube.physiohelper.data.SessionStatus
@@ -88,9 +90,15 @@ fun TodayScreen(nav: (Route) -> Unit) {
 
     val week = Analysis.rehabWeek(s.rehabStart(), today)
     val adh = Analysis.adherence(sessions, s.weeklyTarget, 7, today)
-    val doneToday = sessions.firstOrNull { it.date == todayStr && it.status == SessionStatus.COMPLETED }
+    val doneToday = sessions.firstOrNull { it.date == todayStr && it.status == SessionStatus.COMPLETED && it.type != SessionType.STRENGTH }
+    val legsToday = sessions.firstOrNull { it.date == todayStr && it.status == SessionStatus.COMPLETED && it.type == SessionType.STRENGTH }
+    val legDays = s.strengthDays
+    val legList = exercises.filter { it.enabled && it.program == Program.STRENGTH }
+    val legMin = Analysis.estimateMin(legList, s.getReadySec)
+    val legWeek = Analysis.strengthThisWeek(sessions, today)
+    val nextLegDay = (0..6).map { today.plusDays(it.toLong()) }.firstOrNull { it.dayOfWeek.value in legDays }
     val todayCheck = checkIns.firstOrNull { it.date == todayStr }
-    val enabledList = exercises.filter { it.enabled }
+    val enabledList = exercises.filter { it.enabled && it.program == Program.REHAB }
     val shortList = enabledList.filter { it.inShortSession }
     val enabledCount = enabledList.size
     val shortCount = shortList.size
@@ -167,6 +175,35 @@ fun TodayScreen(nav: (Route) -> Unit) {
             } else {
                 Text("Nice. Rest the shoulder; log the morning check tomorrow.", color = MaterialTheme.colorScheme.onPrimaryContainer)
                 TextButton(onClick = { start(SessionType.FULL) }) { Text("Do another session", color = MaterialTheme.colorScheme.onPrimaryContainer) }
+            }
+        }
+
+        // ---------- leg strength ----------
+        if (legList.isNotEmpty() && legDays.isNotEmpty()) {
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Leg strength", style = MaterialTheme.typography.titleMedium)
+                        Muted(
+                            legDays.sorted().joinToString(" · ") { dayNames[it - 1].second } +
+                                " · ${legList.size} exercises · ~$legMin min · $legWeek/${legDays.size} this week"
+                        )
+                    }
+                    if (legsToday != null) Pill("Done", Palette.PainLow, filled = true)
+                }
+                when {
+                    legsToday != null -> {}
+                    engine.active && engine.type == SessionType.STRENGTH -> FilledTonalButton(onClick = { nav(Route.Session) }, modifier = Modifier.fillMaxWidth()) { Text("Resume leg session") }
+                    today.dayOfWeek.value in legDays -> FilledTonalButton(
+                        onClick = { start(SessionType.STRENGTH) },
+                        enabled = !engine.active,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Start leg session") }
+                    else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Muted("Next: " + (nextLegDay?.format(DateTimeFormatter.ofPattern("EEEE")) ?: "–"), Modifier.weight(1f))
+                        TextButton(onClick = { start(SessionType.STRENGTH) }, enabled = !engine.active) { Text("Do it today anyway") }
+                    }
+                }
             }
         }
 
@@ -276,7 +313,8 @@ private fun WeekStrip(sessions: List<Session>, today: LocalDate) {
                 Spacer(Modifier.height(6.dp))
                 val bg = when {
                     done != null && done.any { it.type == SessionType.FULL } -> MaterialTheme.colorScheme.primary
-                    done != null -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    done != null && done.any { it.type == SessionType.SHORT } -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    done != null -> MaterialTheme.colorScheme.tertiary
                     future -> Color.Transparent
                     else -> MaterialTheme.colorScheme.surfaceContainerHighest
                 }

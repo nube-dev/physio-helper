@@ -30,7 +30,8 @@ enum class Phase(val label: String) {
     DOWN("Lower"),
     REST("Rest"),
     SET_REST("Set rest"),
-    SWITCH("Switch arms"),
+    SWITCH("Switch sides"),
+    WORK("Go"),
     TIMED("Timer"),
     LOG("Log"),
     SUMMARY("Summary");
@@ -62,6 +63,9 @@ data class EngineState(
     val rep: Int = 1,
     /** 0 = right arm, 1 = left arm (exercises done on both sides). */
     val side: Int = 0,
+    /** Self-paced sets: reps entered for each finished set, and the value for the current one. */
+    val setReps: List<Int> = emptyList(),
+    val pendingReps: Int = 0,
     val paused: Boolean = false,
     val repsCompleted: Int = 0,
     val setsCompleted: Int = 0,
@@ -92,7 +96,13 @@ object SessionEngine {
         val appCtx = context.applicationContext
         scope.launch {
             val items = withContext(Dispatchers.IO) {
-                App.dao.exercises().filter { it.enabled && (type == SessionType.FULL || it.inShortSession) }
+                App.dao.exercises().filter {
+                    it.enabled && when (type) {
+                        SessionType.STRENGTH -> it.program == com.nube.physiohelper.data.Program.STRENGTH
+                        SessionType.SHORT -> it.program == com.nube.physiohelper.data.Program.REHAB && it.inShortSession
+                        else -> it.program == com.nube.physiohelper.data.Program.REHAB
+                    }
+                }
             }
             if (items.isEmpty()) { onEmpty(); return@launch }
             val id = withContext(Dispatchers.IO) {
@@ -110,7 +120,7 @@ object SessionEngine {
     fun beginExercise() {
         val ex = s.current ?: return
         val gr = App.settings.getReadySec.coerceAtLeast(0)
-        update(s.copy(repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0, paused = false, draft = LogDraft()))
+        update(s.copy(repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0, setReps = emptyList(), paused = false, draft = LogDraft()))
         if (gr > 0) {
             enter(Phase.GET_READY, gr)
             speaker?.say("${ex.name}. Get ready.", flush = true)
@@ -132,7 +142,7 @@ object SessionEngine {
 
     fun restartExercise() {
         stopTicker()
-        update(s.copy(phase = Phase.READY, paused = false, repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0))
+        update(s.copy(phase = Phase.READY, paused = false, repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0, setReps = emptyList()))
     }
 
     fun skip() = finishExercise(Completion.SKIPPED, pain = 0)
@@ -158,13 +168,14 @@ object SessionEngine {
             setsDone = d.setsDone,
             repsDone = d.repsDone,
             setsPlanned = ex.sets * ex.sides,
-            repsPlanned = if (ex.mode == Mode.TIMED) 1 else ex.reps * ex.sets * ex.sides,
+            repsPlanned = if (ex.mode == Mode.TIMED) 1 else ex.repsTop * ex.sets * ex.sides,
             pain = d.pain,
             effort = d.effort,
             tags = d.tags.joinToString(","),
             note = d.note.trim(),
             bandColor = ex.bandColor,
             level = ex.level,
+            setReps = if (ex.mode == Mode.SETS && st.setReps.isNotEmpty()) st.setReps.joinToString(",") else null,
         )
         scope.launch(Dispatchers.IO) {
             App.dao.insertLog(log)
@@ -291,16 +302,62 @@ object SessionEngine {
             enter(Phase.TIMED, ex.durationSec.coerceAtLeast(1))
             val min = ex.durationSec / 60
             speaker?.say(if (min > 0) "${ex.name}. $min minutes." else ex.name)
+        } else if (ex.mode == Mode.SETS) {
+            enterWork(1, 0)
         } else {
             startRep(1, 1)
+        }
+    }
+
+    // --- self-paced sets ---
+
+    private fun sideLabel(ex: Exercise, side: Int) = (if (side == 0) "Right " else "Left ") + ex.sideWord
+
+    private fun enterWork(set: Int, side: Int) {
+        val ex = s.current ?: return
+        val target = s.setReps.lastOrNull() ?: ex.repsTop
+        update(s.copy(phase = Phase.WORK, set = set, side = side, secondsLeft = 0, phaseTotal = 0, pendingReps = target, paused = false))
+        speaker?.beep(long = true)
+        speaker?.buzz()
+        val range = if (ex.repsMax > ex.reps) "${ex.reps} to ${ex.repsMax} reps." else "${ex.reps} reps."
+        val sideText = if (ex.sides == 2) " ${sideLabel(ex, side)}." else ""
+        speaker?.say("Set $set of ${ex.sets}.$sideText $range")
+    }
+
+    fun setPendingReps(n: Int) {
+        if (s.phase == Phase.WORK) update(s.copy(pendingReps = n.coerceIn(0, 200)))
+    }
+
+    /** The user finished the current set (or side). */
+    fun completeSet() {
+        val st = s
+        val ex = st.current ?: return
+        if (st.phase != Phase.WORK) return
+        val done = st.copy(setReps = st.setReps + st.pendingReps, repsCompleted = st.repsCompleted + st.pendingReps)
+        update(done)
+        if (ex.sides == 2 && st.side == 0) {
+            enterWork(st.set, 1)
+            return
+        }
+        update(s.copy(setsCompleted = s.setsCompleted + 1))
+        if (st.set < ex.sets) {
+            if (ex.setRestSec > 0) {
+                enter(Phase.SET_REST, ex.setRestSec)
+                speaker?.say("Rest ${ex.setRestSec} seconds.")
+            } else {
+                enterWork(st.set + 1, 0)
+            }
+        } else {
+            finishExercise(Completion.FULL, pain = null)
         }
     }
 
     private fun startRep(rep: Int, set: Int) {
         val ex = s.current ?: return
         update(s.copy(rep = rep, set = set))
-        val arm = if (ex.sides == 2 && rep == 1 && set == 1) (if (s.side == 0) "Right arm. " else "Left arm. ") else ""
-        val prefix = arm + (if (rep == 1 && set > 1) "Set $set. " else "") + "Rep $rep of ${ex.reps}."
+        val arm = if (ex.sides == 2 && rep == 1 && set == 1) "${sideLabel(ex, s.side)}. " else ""
+        val count = if (ex.reps == 1) "Set $set of ${ex.sets}." else (if (rep == 1 && set > 1) "Set $set. " else "") + "Rep $rep of ${ex.reps}."
+        val prefix = arm + count
         when {
             ex.upSec > 0 -> { enter(Phase.UP, ex.upSec); speaker?.say("$prefix Lift.") }
             ex.holdSec > 0 -> { enter(Phase.HOLD, ex.holdSec); speaker?.say("$prefix Hold.") }
@@ -329,7 +386,7 @@ object SessionEngine {
             Phase.HOLD -> if (ex.downSec > 0) { enter(Phase.DOWN, ex.downSec); speaker?.say("Lower slowly.") } else repDone()
             Phase.DOWN -> repDone()
             Phase.REST -> startRep(st.rep + 1, st.set)
-            Phase.SET_REST -> startRep(1, st.set + 1)
+            Phase.SET_REST -> if (ex.mode == Mode.SETS) enterWork(st.set + 1, 0) else startRep(1, st.set + 1)
             Phase.SWITCH -> {
                 update(s.copy(side = 1))
                 startRep(1, 1)
@@ -353,7 +410,7 @@ object SessionEngine {
                 } else startRep(1, st.set + 1)
             } else if (ex.sides == 2 && st.side == 0) {
                 enter(Phase.SWITCH, App.settings.getReadySec.coerceIn(5, 15))
-                speaker?.say("Right arm done. Switch to your left arm.")
+                speaker?.say("Right ${ex.sideWord} done. Switch to your left ${ex.sideWord}.")
             } else {
                 finishExercise(Completion.FULL, pain = null)
             }

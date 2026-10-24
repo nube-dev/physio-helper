@@ -6,8 +6,14 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 object Mode {
-    const val REPS = "REPS"     // up / hold / down / rest cycle per rep
-    const val TIMED = "TIMED"   // one block of time (heat)
+    const val REPS = "REPS"     // up / hold / down / rest cycle per rep, timed by the app
+    const val TIMED = "TIMED"   // one block of time (heat, warm-up)
+    const val SETS = "SETS"     // self-paced sets: do the reps, tap Done, timed rest between sets
+}
+
+object Program {
+    const val REHAB = 0
+    const val STRENGTH = 1
 }
 
 object Category {
@@ -16,8 +22,10 @@ object Category {
     const val WALL = "WALL"
     const val PRONE = "PRONE"
     const val BAND = "BAND"
+    const val LEGS = "LEGS"
+    const val CORE = "CORE"
     const val OTHER = "OTHER"
-    val all = listOf(HEAT, STRETCH, WALL, PRONE, BAND, OTHER)
+    val all = listOf(HEAT, STRETCH, WALL, PRONE, BAND, LEGS, CORE, OTHER)
 }
 
 object Completion {
@@ -41,6 +49,7 @@ object SessionStatus {
 object SessionType {
     const val FULL = "FULL"
     const val SHORT = "SHORT"
+    const val STRENGTH = "STRENGTH"
 }
 
 @Entity(tableName = "exercises")
@@ -70,8 +79,15 @@ data class Exercise(
     val mediaUri: String = "",
     /** Run every set on the right arm, then again on the left. */
     @ColumnInfo(defaultValue = "0") val bothSides: Boolean = false,
+    /** Top of the rep range for self-paced sets (reps is the bottom); 0 = a single target. */
+    @ColumnInfo(defaultValue = "0") val repsMax: Int = 0,
+    /** [Program.REHAB] or [Program.STRENGTH]. */
+    @ColumnInfo(defaultValue = "0") val program: Int = Program.REHAB,
 ) {
-    val sides: Int get() = if (bothSides && mode == Mode.REPS) 2 else 1
+    val sides: Int get() = if (bothSides && mode != Mode.TIMED) 2 else 1
+    val repsTop: Int get() = if (repsMax > reps) repsMax else reps
+    /** "arm" for the shoulder exercises, "leg" for leg work. */
+    val sideWord: String get() = if (category == Category.LEGS) "leg" else "arm"
 }
 
 @Entity(tableName = "sessions")
@@ -108,6 +124,8 @@ data class ExerciseLog(
     val note: String,
     val bandColor: String,
     val level: Int,
+    /** Reps done in each set, comma-separated, for self-paced sets. */
+    val setReps: String? = null,
 ) {
     val tagList: List<String> get() = tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 }

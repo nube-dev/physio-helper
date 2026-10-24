@@ -62,8 +62,17 @@ fun SettingsScreen(nav: (Route) -> Unit, onBack: () -> Unit) {
             PrefTime("Time", s.backupMin) { s.backupMin = it; resched() }
         }
         PhysioAppointment()
+        SectionCard("Leg strength days") {
+            var days by remember { mutableStateOf(s.strengthDays) }
+            MultiChoice(dayNames.map { it.second }, days.map { dayNames[it - 1].second }.toSet()) { name ->
+                val d = dayNames.first { it.second == name }.first
+                days = if (d in days) days - d else days + d
+                s.strengthDays = days
+            }
+            Muted("Non-consecutive days give the legs a rest day in between.")
+        }
         SectionCard("Session") {
-            PrefStepper("Weekly target", s.weeklyTarget, 1, 7, suffix = " /wk") { s.weeklyTarget = it }
+            PrefStepper("Shoulder sessions per week", s.weeklyTarget, 1, 7, suffix = " /wk") { s.weeklyTarget = it }
             PrefStepper("Get-ready countdown", s.getReadySec, 0, 20, suffix = "s") { s.getReadySec = it }
             PrefStepper("Hold countdown from", s.countdownFrom, 0, 10, suffix = "s") { s.countdownFrom = it }
             PrefSwitch("Keep screen on during session", s.keepScreenOn) { s.keepScreenOn = it }
