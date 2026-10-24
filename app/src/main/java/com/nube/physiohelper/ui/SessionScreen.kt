@@ -63,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -96,6 +97,7 @@ fun doseText(e: Exercise): String = if (e.mode == Mode.TIMED) {
     if (e.downSec > 0) parts += "${e.downSec}s down"
     if (parts.isNotEmpty()) append(" · " + parts.joinToString(" · "))
     if (e.bandColor.isNotBlank()) append(" · ${e.bandColor.lowercase()} band")
+    if (e.sides == 2) append(" · both sides")
 }
 
 @Composable
@@ -259,9 +261,15 @@ private fun ColumnScope.RunningPanel(ex: Exercise, st: EngineState) {
     val progress by animateFloatAsState(target, if (linear) tween(1000, easing = LinearEasing) else tween(450), label = "fig")
     val push = if (st.phase == Phase.HOLD && !st.paused) 1f else 0.15f
 
-    Text(ex.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(ex.name, color = Color.White, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (ex.sides == 2) Pill(if (st.side == 0) "Right arm" else "Left arm", Color.White)
+    }
     Spacer(Modifier.height(10.dp))
-    ExerciseMedia(ex, height = 200.dp, progress = progress, push = push, background = MaterialTheme.colorScheme.surface)
+    // The left side shows the demonstration mirrored.
+    Box(Modifier.graphicsLayer { scaleX = if (st.side == 1) -1f else 1f }) {
+        ExerciseMedia(ex, height = 200.dp, progress = progress, push = push, background = MaterialTheme.colorScheme.surface)
+    }
 
     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
         ProgressRing(
@@ -424,8 +432,8 @@ private fun LogPanel(ex: Exercise, st: EngineState) {
                     d.completion,
                 ) { upd(d.copy(completion = it)) }
                 if (ex.mode == Mode.REPS && d.completion != Completion.SKIPPED) {
-                    Stepper("Reps (all sets)", d.repsDone, { upd(d.copy(repsDone = it)) }, 0, ex.reps * ex.sets)
-                    Stepper("Sets", d.setsDone, { upd(d.copy(setsDone = it)) }, 0, ex.sets)
+                    Stepper("Reps (all sets)", d.repsDone, { upd(d.copy(repsDone = it)) }, 0, ex.reps * ex.sets * ex.sides)
+                    Stepper("Sets", d.setsDone, { upd(d.copy(setsDone = it)) }, 0, ex.sets * ex.sides)
                 }
             }
         }

@@ -187,8 +187,8 @@ object Analysis {
         if (e.mode == com.nube.physiohelper.data.Mode.TIMED) {
             e.durationSec + getReadySec + 15
         } else {
-            e.sets * e.reps * (e.upSec + e.holdSec + e.downSec + e.restSec) +
-                (e.sets - 1).coerceAtLeast(0) * e.setRestSec + getReadySec + 20
+            e.sides * (e.sets * e.reps * (e.upSec + e.holdSec + e.downSec + e.restSec) +
+                (e.sets - 1).coerceAtLeast(0) * e.setRestSec) + (e.sides - 1) * 8 + getReadySec + 20
         }
 
     fun estimateMin(list: List<Exercise>, getReadySec: Int): Int =

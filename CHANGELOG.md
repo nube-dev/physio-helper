@@ -4,6 +4,12 @@ Versions follow [semantic versioning](https://semver.org): patch for fixes, mino
 features, major for changes that break existing data or habits. Each version below is a GitHub
 release with its APK.
 
+## [1.3.0] - 2026-10-24
+### Added
+- "Both sides" switch per exercise (Program → exercise): all sets on the right arm, then a
+  switch countdown and the same on the left, with the demonstration mirrored. Off by default,
+  since the prescription is for the right shoulder.
+
 ## [1.2.3] - 2026-10-24
 ### Fixed
 - Hold countdown: voice cues now queue instead of interrupting each other, so "three, two, one"

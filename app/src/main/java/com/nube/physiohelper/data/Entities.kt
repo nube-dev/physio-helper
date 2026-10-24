@@ -1,5 +1,6 @@
 package com.nube.physiohelper.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -67,7 +68,11 @@ data class Exercise(
     val avoid: String = "",
     val videoUrl: String = "",
     val mediaUri: String = "",
-)
+    /** Run every set on the right arm, then again on the left. */
+    @ColumnInfo(defaultValue = "0") val bothSides: Boolean = false,
+) {
+    val sides: Int get() = if (bothSides && mode == Mode.REPS) 2 else 1
+}
 
 @Entity(tableName = "sessions")
 data class Session(

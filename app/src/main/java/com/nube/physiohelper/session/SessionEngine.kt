@@ -30,11 +30,12 @@ enum class Phase(val label: String) {
     DOWN("Lower"),
     REST("Rest"),
     SET_REST("Set rest"),
+    SWITCH("Switch arms"),
     TIMED("Timer"),
     LOG("Log"),
     SUMMARY("Summary");
 
-    val isTiming: Boolean get() = this in setOf(GET_READY, UP, HOLD, DOWN, REST, SET_REST, TIMED)
+    val isTiming: Boolean get() = this in setOf(GET_READY, UP, HOLD, DOWN, REST, SET_REST, SWITCH, TIMED)
 }
 
 data class LogDraft(
@@ -59,6 +60,8 @@ data class EngineState(
     val phaseTotal: Int = 0,
     val set: Int = 1,
     val rep: Int = 1,
+    /** 0 = right arm, 1 = left arm (exercises done on both sides). */
+    val side: Int = 0,
     val paused: Boolean = false,
     val repsCompleted: Int = 0,
     val setsCompleted: Int = 0,
@@ -107,7 +110,7 @@ object SessionEngine {
     fun beginExercise() {
         val ex = s.current ?: return
         val gr = App.settings.getReadySec.coerceAtLeast(0)
-        update(s.copy(repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, paused = false, draft = LogDraft()))
+        update(s.copy(repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0, paused = false, draft = LogDraft()))
         if (gr > 0) {
             enter(Phase.GET_READY, gr)
             speaker?.say("${ex.name}. Get ready.", flush = true)
@@ -129,7 +132,7 @@ object SessionEngine {
 
     fun restartExercise() {
         stopTicker()
-        update(s.copy(phase = Phase.READY, paused = false, repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1))
+        update(s.copy(phase = Phase.READY, paused = false, repsCompleted = 0, setsCompleted = 0, set = 1, rep = 1, side = 0))
     }
 
     fun skip() = finishExercise(Completion.SKIPPED, pain = 0)
@@ -154,8 +157,8 @@ object SessionEngine {
             completion = d.completion,
             setsDone = d.setsDone,
             repsDone = d.repsDone,
-            setsPlanned = ex.sets,
-            repsPlanned = if (ex.mode == Mode.TIMED) 1 else ex.reps * ex.sets,
+            setsPlanned = ex.sets * ex.sides,
+            repsPlanned = if (ex.mode == Mode.TIMED) 1 else ex.reps * ex.sets * ex.sides,
             pain = d.pain,
             effort = d.effort,
             tags = d.tags.joinToString(","),
@@ -296,7 +299,8 @@ object SessionEngine {
     private fun startRep(rep: Int, set: Int) {
         val ex = s.current ?: return
         update(s.copy(rep = rep, set = set))
-        val prefix = (if (rep == 1 && set > 1) "Set $set. " else "") + "Rep $rep of ${ex.reps}."
+        val arm = if (ex.sides == 2 && rep == 1 && set == 1) (if (s.side == 0) "Right arm. " else "Left arm. ") else ""
+        val prefix = arm + (if (rep == 1 && set > 1) "Set $set. " else "") + "Rep $rep of ${ex.reps}."
         when {
             ex.upSec > 0 -> { enter(Phase.UP, ex.upSec); speaker?.say("$prefix Lift.") }
             ex.holdSec > 0 -> { enter(Phase.HOLD, ex.holdSec); speaker?.say("$prefix Hold.") }
@@ -326,6 +330,10 @@ object SessionEngine {
             Phase.DOWN -> repDone()
             Phase.REST -> startRep(st.rep + 1, st.set)
             Phase.SET_REST -> startRep(1, st.set + 1)
+            Phase.SWITCH -> {
+                update(s.copy(side = 1))
+                startRep(1, 1)
+            }
             else -> {}
         }
     }
@@ -343,6 +351,9 @@ object SessionEngine {
                     enter(Phase.SET_REST, ex.setRestSec)
                     speaker?.say("Set ${st.set} done. Rest ${ex.setRestSec} seconds.")
                 } else startRep(1, st.set + 1)
+            } else if (ex.sides == 2 && st.side == 0) {
+                enter(Phase.SWITCH, App.settings.getReadySec.coerceIn(5, 15))
+                speaker?.say("Right arm done. Switch to your left arm.")
             } else {
                 finishExercise(Completion.FULL, pain = null)
             }

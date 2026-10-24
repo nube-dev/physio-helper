@@ -89,6 +89,7 @@ fun ProgramScreen(nav: (Route) -> Unit) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (e.pendingPhysio) Pill("pending physio", Palette.PainMid)
                             if (e.inShortSession) Pill("short", MaterialTheme.colorScheme.primary)
+                            if (e.sides == 2) Pill("both sides", MaterialTheme.colorScheme.secondary)
                             if (e.level > 1) Pill("level ${e.level}", MaterialTheme.colorScheme.tertiary)
                         }
                     }
@@ -165,6 +166,9 @@ fun EditExerciseScreen(id: String?, onBack: () -> Unit) {
         SectionCard("Session") {
             SwitchRow("Enabled", cur.enabled) { upd(cur.copy(enabled = it)) }
             SwitchRow("In the short (bad-day) session", cur.inShortSession) { upd(cur.copy(inShortSession = it)) }
+            if (cur.mode == Mode.REPS) {
+                SwitchRow("Both sides", cur.bothSides, "All sets on the right arm, then on the left") { upd(cur.copy(bothSides = it)) }
+            }
             SwitchRow("Pending physio confirmation", cur.pendingPhysio) { upd(cur.copy(pendingPhysio = it)) }
         }
         SectionCard("Instructions") {

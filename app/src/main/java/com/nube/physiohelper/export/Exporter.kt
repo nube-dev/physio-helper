@@ -141,6 +141,7 @@ object Exporter {
         if (e.restSec > 0) parts += "${e.restSec}s rest"
         if (parts.isNotEmpty()) append(" (" + parts.joinToString(", ") + ")")
         if (e.bandColor.isNotBlank()) append(", ${e.bandColor.lowercase()} band")
+        if (e.sides == 2) append(", both sides")
         append(", level ${e.level}")
     }
 
@@ -238,6 +239,7 @@ object Exporter {
         put("durationSec", e.durationSec); put("bandColor", e.bandColor); put("level", e.level)
         put("inShortSession", e.inShortSession); put("steps", e.steps); put("cues", e.cues)
         put("avoid", e.avoid); put("videoUrl", e.videoUrl); put("mediaUri", e.mediaUri)
+        put("bothSides", e.bothSides)
     }
 
     private fun exFromJson(o: JSONObject) = Exercise(
@@ -251,6 +253,7 @@ object Exporter {
         inShortSession = o.optBoolean("inShortSession"), steps = o.optString("steps"),
         cues = o.optString("cues"), avoid = o.optString("avoid"), videoUrl = o.optString("videoUrl"),
         mediaUri = o.optString("mediaUri"),
+        bothSides = o.optBoolean("bothSides"),
     )
 
     private fun sessionToJson(s: Session) = JSONObject().apply {
