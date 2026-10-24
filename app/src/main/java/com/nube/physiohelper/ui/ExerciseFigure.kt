@@ -292,12 +292,13 @@ private class Pen(val d: DrawScope, val s: Float, val ox: Float, val oy: Float, 
         forceArrow(Offset(28.5f * s + ox, hand.y), -1f, 0f, push, pulse)
     }
 
+    /** Facing the wall, straight arm down by the side, palm pushes forward: the mirror of wall 1. */
     fun wallFront(push: Float, pulse: Float) {
-        wall(74f)
-        val sh = sideBody(44f)
-        val (_, hand) = arm(sh, 15f, 90f, mirror = false)
-        dot(hand, 2.6f, c.accent)
-        forceArrow(Offset(73f * s + ox, hand.y - 4f * s), 1f, 0f, push, pulse)
+        wall(60f)
+        val sh = sideBody(48f)
+        val (_, hand) = arm(sh, 12f, 12f, mirror = false)
+        line(p(57.5f, hand.y / s - oy / s - 4f), p(57.5f, hand.y / s - oy / s + 4f), c.accent, 2.4f)
+        forceArrow(Offset(58.5f * s + ox, hand.y), 1f, 0f, push, pulse)
     }
 
     /** Top-down view: head, shoulders, the right elbow at the side and the forearm. */

@@ -22,7 +22,7 @@ and underscores only — the ids below already are.
 | Wall 2: elbow push back | `wall_2_extension_elbow` |
 | Wall 3: elbow push outward | `wall_3_abduction_elbow` |
 | Wall 4: straight arm push out | `wall_4_abduction_straight` |
-| Wall 5: fist push forward | `wall_5_flexion` |
+| Wall 5: palm push forward (face the wall, arm straight down) | `wall_5_flexion` |
 | Wall 6a: external rotation (pending physio) | `wall_6a_external_rotation` |
 | Wall 6b: internal rotation (pending physio) | `wall_6b_internal_rotation` |
 | Prone Y | `prone_y` |

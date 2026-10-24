@@ -64,11 +64,11 @@ object Seed {
                 videoUrl = "https://au.physitrack.com/home-exercise-video/isometric-shoulder-abduction-against-wall",
             ),
             Exercise(
-                id = "wall_5_flexion", name = "Wall 5: fist push forward", category = Category.WALL, orderIndex = next(),
+                id = "wall_5_flexion", name = "Wall 5: palm push forward", category = Category.WALL, orderIndex = next(),
                 inShortSession = true,
-                steps = "Face the wall, elbow bent. Push your fist forward into the wall. $WALL_STEPS_COMMON",
-                cues = "Shoulder down and back.",
-                videoUrl = "https://au.physitrack.com/home-exercise-video/isometric-shoulder-flexion",
+                steps = "Face the wall, standing close. Right arm straight down by your side, palm flat on the wall in front of you. Push the palm forward into the wall — the mirror of wall 1. $WALL_STEPS_COMMON",
+                cues = "Arm stays straight. Don't lean into the wall or shrug.",
+                videoUrl = "",
             ),
             Exercise(
                 id = "wall_6a_external_rotation", name = "Wall 6a: external rotation", category = Category.WALL, orderIndex = next(),

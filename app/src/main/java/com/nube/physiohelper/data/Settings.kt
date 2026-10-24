@@ -68,6 +68,10 @@ class Settings(context: Context) {
     var lastBackupAt: Long
         get() = p.getLong("last_backup_at", 0L); set(v) = p.edit().putLong("last_backup_at", v).apply()
 
+    /** Highest [SeedPatches] version already applied to this install's program. */
+    var seedPatch: Int
+        get() = int("seed_patch", 0); set(v) = setInt("seed_patch", v)
+
     var setupGuideSeen: Boolean
         get() = bool("setup_seen", false); set(v) = setBool("setup_seen", v)
 

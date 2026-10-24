@@ -4,6 +4,7 @@ import android.app.Application
 import com.nube.physiohelper.data.AppDao
 import com.nube.physiohelper.data.AppDatabase
 import com.nube.physiohelper.data.Seed
+import com.nube.physiohelper.data.SeedPatches
 import com.nube.physiohelper.data.SessionStatus
 import com.nube.physiohelper.data.Settings
 import com.nube.physiohelper.reminders.Notifications
@@ -31,6 +32,7 @@ class App : Application() {
         Notifications.createChannels(this)
         appScope.launch {
             if (dao.exerciseCount() == 0) dao.upsertExercises(Seed.program())
+            SeedPatches.apply(dao, settings)
             // A session left IN_PROGRESS by a killed process can't be resumed; close it out.
             if (!SessionEngine.state.value.active) {
                 for (s in dao.inProgressSessions()) {
