@@ -27,6 +27,25 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Read version
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(tr -d '[:space:]' < VERSION)
+          if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::VERSION must be X.Y.Z, got '$V'"; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$V is already released; bump VERSION to publish a new release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          awk -v v="$V" 'index($0, "## [" v "]") == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+
       - name: Restore signing key from secrets
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
@@ -59,13 +78,22 @@ jobs:
           gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -F body=@err.md || true
 
       - name: Name APK
-        run: cp app/build/outputs/apk/release/app-release.apk "PhysioHelper-${{ github.run_number }}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "PhysioHelper-v${{ steps.ver.outputs.version }}.apk"
 
       - name: Publish release
+        if: steps.ver.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Physio Helper build ${{ github.run_number }}
-          body: ${{ github.event.head_commit.message }}
-          files: PhysioHelper-${{ github.run_number }}.apk
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Physio Helper ${{ steps.ver.outputs.version }}
+          body_path: notes.md
+          files: PhysioHelper-v${{ steps.ver.outputs.version }}.apk
           make_latest: true
+
+      - name: Keep the APK as a build artifact (no version bump)
+        if: steps.ver.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhysioHelper-v${{ steps.ver.outputs.version }}-build${{ github.run_number }}
+          path: PhysioHelper-v${{ steps.ver.outputs.version }}.apk
+          retention-days: 14

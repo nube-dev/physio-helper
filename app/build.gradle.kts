@@ -5,6 +5,8 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// versionName comes from VERSION (X.Y.Z); versionCode is the CI run number, which only increases.
+val appVersion = rootProject.file("VERSION").readText().trim()
 val buildNumber = (System.getenv("BUILD_NUMBER") ?: "1").toInt()
 
 // Release signing comes from the environment (GitHub Actions secrets), never from the repo.
@@ -21,7 +23,7 @@ android {
         minSdk = 29
         targetSdk = 34
         versionCode = buildNumber
-        versionName = "1.0.$buildNumber"
+        versionName = appVersion
     }
 
     signingConfigs {

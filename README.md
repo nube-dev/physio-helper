@@ -5,10 +5,17 @@ there is no account, server or sync.
 
 ## Install
 
-Every push to `main` builds a signed APK and publishes it as a GitHub Release.
-On the phone: open this repo's **Releases**, download the newest `PhysioHelper-N.apk`,
-and install it (allow "install unknown apps" for the browser the first time).
-New builds install over the old one and keep your data.
+Each version is a GitHub Release with a signed APK. On the phone: open this repo's
+**Releases**, download the newest `PhysioHelper-vX.Y.Z.apk`, and install it (allow "install
+unknown apps" for the browser the first time). New versions install over the old one and keep
+your data. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+
+## Releasing
+
+The version lives in `VERSION` (`X.Y.Z`, semantic versioning). Every push to `main` builds the
+APK; a release `vX.Y.Z` is published only when `VERSION` names a version that isn't released
+yet, with notes taken from that version's section of `CHANGELOG.md`. So to ship: bump
+`VERSION`, add the changelog section, push.
 
 ## What it does
 
